@@ -5,3 +5,13 @@ build/
 reference/out/
 demo/
 *.log
+
+# Private / local-only (not published)
+BRIEF.md
+INSTALL_LOG.md
+*.fmx
+extracted/
+analysis/
+reference/render.js
+reference/analyze_original.js
+reference/compare_original.js

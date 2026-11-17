@@ -205,4 +205,4 @@ in -> Input Gain -> [meter] -+-> oversample up (Eco 2x / High 4x, linear-phase h
 - All allocation happens in `prepare()`. The audio thread never locks or allocates. Meters, the gain trace and the Boom LED reach the UI through atomics and a lock-free FIFO.
 - Parameter changes are ramped (30 ms). On/off switches fade (30 ms) and choice switches fade out, switch and fade in (15 ms each way). A Quality switch fades the wet path out and in over 5 ms.
 - Randomness (xorshift32) is reseeded from a per-instance seed on every reset, so renders are repeatable.
-- Tests: `reference/analyze_pulse.js` (DSP: latency, transparency, every original issue, robustness, determinism), `reference/compare_original.js` (side-by-side with the original, see `COMPARISON.md`), `pulse_uishot --selftest` (presets, A/B, undo, state recall) and pluginval.
+- Tests: `reference/analyze_pulse.js` (DSP: latency, transparency, every original issue, robustness, determinism), `COMPARISON.md` (side-by-side renders with the original; the script needs the original prototype, which isn't in this repo), `pulse_uishot --selftest` (presets, A/B, undo, state recall) and pluginval.

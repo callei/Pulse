@@ -1,4 +1,4 @@
-// pulse_uishot out.png [--width N] [--open MASK] [Name=value ...]   |   pulse_uishot --selftest
+// pulse_uishot out.png [--width N] [--open MASK] [--preset INDEX] [Name=value ...]   |   pulse_uishot --selftest
 // Renders the Pulse editor off-screen to a PNG (developer tool for checking the layout).
 // MASK: bit 0..3 = TAPE, GRIT, SHAPE, PUNCH expanded.
 #include "../src/PluginEditor.h"
@@ -94,6 +94,7 @@ int main(int argc, char** argv)
         const juce::String a(argv[i]);
         if (a == "--width" && i + 1 < argc) width = juce::String(argv[++i]).getIntValue();
         else if (a == "--open" && i + 1 < argc) mask = juce::String(argv[++i]).getIntValue();
+        else if (a == "--preset" && i + 1 < argc) proc.presets.load(juce::String(argv[++i]).getIntValue());
         else if (a.contains("="))
         {
             const int id = P::findByIdString(a.upToFirstOccurrenceOf("=", false, false));

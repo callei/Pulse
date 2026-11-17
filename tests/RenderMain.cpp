@@ -5,6 +5,7 @@
 //     --block N   processing block size (default 512)
 //     --trim      remove the plugin latency from the output so it lines up with the input
 //     --info      print latency and render speed
+//   pulse_render --params   lists all parameters (id min max default)
 #include <juce_audio_formats/juce_audio_formats.h>
 #include "Params.h"
 #include "engine/PulseEngine.h"
@@ -23,6 +24,12 @@ int main(int argc, char** argv)
         if (a == "--block" && i + 1 < argc) block = juce::String(argv[++i]).getIntValue();
         else if (a == "--trim") trim = true;
         else if (a == "--info") info = true;
+        else if (a == "--params") // list every parameter: id min max default
+        {
+            for (int id = 0; id < P::Count; ++id)
+                std::printf("%s %g %g %g\n", P::def(id).id, P::def(id).min, P::def(id).max, P::def(id).def);
+            return 0;
+        }
         else if (a.contains("="))
         {
             const int id = P::findByIdString(a.upToFirstOccurrenceOf("=", false, false));

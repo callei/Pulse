@@ -127,8 +127,8 @@ for (const q of [0, 1]) {
   const d = db(rms(tail)) - db(rms(ref)); log('auto gain on, heavy settings: RMS change after 8 s', `${d.toFixed(1)} dB`, Math.abs(d) < 1.5); }
 
 // ---- Robustness ---------------------------------------------------------------------------------
-{ const maxAll = {}; const { PARAMS } = require('./render');
-  for (const p of PARAMS) maxAll[p.name] = p.max;
+{ const maxAll = {};
+  for (const line of execFileSync(EXE, ['--params']).toString().trim().split(String.fromCharCode(10))) { const [name, , max] = line.trim().split(' '); maxAll[name] = +max; }
   Object.assign(maxAll, { TapeBypass: 0, RetroBypass: 0, TransBypass: 0, FxBypass: 0 });
   let ok = true; try { const out = render(null, maxAll, { stereo: loop.map((c) => c.map((v) => v * 4)) }); ok = out.every((c) => c.every(Number.isFinite)); } catch { ok = false; }
   log('all params at max, +12 dB hot input: finite output', ok ? 'yes' : 'NO', ok); }
