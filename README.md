@@ -13,6 +13,10 @@ A drum processor for Windows: a VST3 plugin plus a standalone app, built with C+
 - One-page resizable UI, factory and user presets, A/B compare, undo/redo
 - Mono or stereo, 44.1–192 kHz, any buffer size
 
+## Download
+
+Get the latest **Pulse-x.y.z-Windows-x64.zip** from [Releases](https://github.com/callei/Pulse/releases). Copy `Pulse.vst3` to `C:\Program Files\Common Files\VST3\` and rescan plugins in your DAW, or just run `Pulse.exe`.
+
 ## Build
 
 Needs Windows, Visual Studio 2022 (C++ workload) and CMake 3.22 or newer. JUCE is downloaded automatically.
