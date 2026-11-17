@@ -47,7 +47,10 @@ for (const sr of [44100, 48000, 96000]) for (const q of [0, 1]) {
 // ---- Tape ---------------------------------------------------------------------------------------
 const TAPE = { ...ALL_OFF, TapeBypass: 0, TapeHiss: -90 };
 { const s = sine(1000, 1, -30); const [l] = render(s, TAPE); const g = gainDb(l, s);
-  log('tape small-signal gain at default drive (orig +11.1 dB)', `${g.toFixed(2)} dB`, Math.abs(g) < 1); }
+  log('tape quiet-signal gain at default drive (orig +11.1 dB)', `${g.toFixed(2)} dB`, Math.abs(g) < 2); }
+{ const lvl = (d) => { const out = render(null, { ...TAPE, TapeWow: 0, TapeFlutter: 0, TapeDrive: d, TapeFormula: 2 }, { stereo: loop }); return db(rms(out[0])) - db(rms(loop[0])); };
+  const v = [-24, 0, 12, 24].map(lvl);
+  log('tape loop loudness, drive -24/0/+12/+24 (orig +10.0 at +6, +14.5 at +18)', v.map((x) => x.toFixed(1)).join(' / ') + ' dB', v.every((x) => x > -1 && x < 4.5)); }
 for (const mix of [50]) {
   const r = [96, 192, 288].map((f) => { const s = sine(f, 1, -30); const [l] = render(s, { ...TAPE, TapeDrive: -24, TapeHeadBump: 0, TapeWow: 0, TapeFlutter: 0, TapeMix: mix }); return gainDb(l, s); });
   const ripple = Math.max(...r) - Math.min(...r);

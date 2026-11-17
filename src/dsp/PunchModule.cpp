@@ -144,7 +144,7 @@ void PunchModule::process(float* L, float* R, int n, const P::Values& v)
                 vc.env *= vc.releasing ? releaseCoef : decCoef;
                 vc.pitchEnv *= peCoef;
             }
-            boom *= bAmt * 0.6f * bOn;
+            boom *= bAmt * 0.85f * bOn; // 100% = sub peaks near -1.4 dBFS
             x[0] += boom; x[1] += boom;
         }
 

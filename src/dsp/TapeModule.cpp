@@ -123,9 +123,10 @@ void TapeModule::process(float* L, float* R, int n, const P::Values& v)
             coefCounter = kCoefInterval;
         }
 
-        // Small-signal gain of the biased shaper, used to keep the level constant for any drive/formula/bias.
+        // Level compensation: unity gain for a drum-level signal (kRefLevel peak) at any drive/formula/bias.
+        // (Calibrating for quiet signals instead made hot settings drop far below the input level.)
         const float tb = dsp::fastTanh(kk * bi);
-        const float comp = 1.f / (g * kk * (1.f - tb * tb));
+        const float comp = 2.f * kRefLevel / std::max(1.0e-6f, dsp::fastTanh(kk * (kRefLevel * g + bi)) - dsp::fastTanh(kk * (-kRefLevel * g + bi)));
 
         const float d = drift.next(rng, 0.5f, fs);
         if (filtersMoving || hissNorm <= 0.f) hissNorm = 1.732f * std::sqrt((float) (fs * 0.5) / std::max(1000.f, lpHz.current - 800.f));
@@ -136,7 +137,7 @@ void TapeModule::process(float* L, float* R, int n, const P::Values& v)
             auto& s = ch[c];
             const float x = io[c][i];
             float y = s.pre.process(x * g);
-            y = s.dc.process((dsp::fastTanh(kk * (y + bi)) - tb) * comp); // unity small-signal gain incl. drive
+            y = s.dc.process((dsp::fastTanh(kk * (y + bi)) - tb) * comp); // level-matched incl. drive
             y = s.de.process(y);
             y = s.bump.process(y);
             y = s.lpf.process(y);

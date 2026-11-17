@@ -8,6 +8,7 @@
 class TapeModule
 {
 public:
+    static constexpr float kRefLevel = 0.25f; // -12 dBFS peak: drive is level-matched here
     void prepare(double baseRate, int osFactor);
     void reset(uint32_t seed);
     void process(float* L, float* R, int n, const P::Values& v);
