@@ -185,3 +185,24 @@ Order inside the module:
 | 16 | Flux is a ~38 Hz jitter on noise level only, not a "smooth random LFO" for drive/noise/wobble | Code |
 
 Good things worth keeping: the overall chain idea; pre/de-emphasis around the tape shaper (HF saturates first); speed-dependent head bump and HF loss; band-focused distortion (only the Focus band gets distorted); the dual-envelope ratio transient detection; per-mode detector tuning; the Boom pitch-drop envelope; the cheap overall CPU (wasm ≈ 177× real-time in Node).
+
+## 4. Pulse implementation (the rebuild)
+
+What Pulse does differently is listed per module in `CHANGELOG.md`; this is the structure.
+
+```
+in -> Input Gain -> [meter] -+-> oversample up (Eco 2x / High 4x, linear-phase half-band FIR)
+                             |     TAPE -> GRIT -> SHAPE -> PUNCH      (each: prepare / process / reset,
+                             |   oversample down                        constant internal delay,
+                             |   fractional-delay align (same latency    aligned dry for its own Mix/bypass)
+                             |     in Eco and High)
+                             |   true-peak limiter (-0.5 dBTP, only acts when PUNCH Finish is on)
+                             +-> dry, delayed by the full latency
+   -> Width (M/S) -> Match (auto gain) -> Mix (wet vs aligned dry) -> Output Gain -> [meter] -> out
+```
+
+- Source files: `src/dsp/TapeModule`, `GritModule`, `ShapeModule`, `PunchModule`, `TruePeakLimiter.h`, `GlobalSection` (input/width/match/mix/output/meters); `src/engine/PulseEngine` ties them together; `src/Params` is the single list of parameters (IDs 0–55 = the original's names and order).
+- All allocation happens in `prepare()`. The audio thread never locks or allocates. Meters, the gain trace and the Boom LED reach the UI through atomics and a lock-free FIFO.
+- Parameter changes are ramped (30 ms). On/off switches fade (30 ms) and choice switches fade out, switch and fade in (15 ms each way). A Quality switch fades the wet path out and in over 5 ms.
+- Randomness (xorshift32) is reseeded from a per-instance seed on every reset, so renders are repeatable.
+- Tests: `reference/analyze_pulse.js` (DSP: latency, transparency, every original issue, robustness, determinism), `reference/compare_original.js` (side-by-side with the original, see `COMPARISON.md`), `pulse_uishot --selftest` (presets, A/B, undo, state recall) and pluginval.
