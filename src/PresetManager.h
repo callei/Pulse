@@ -16,7 +16,7 @@ public:
 
     juce::StringArray userNames() const;
     int numPresets() const { return (int) factory().size() + userNames().size(); }
-    void load(int index);              // factory first, then user presets (alphabetical)
+    bool load(int index);              // factory first, then user presets (alphabetical); false if unreadable
     void step(int delta);              // previous / next
     bool saveUser(const juce::String& name);
     juce::String currentName() const;

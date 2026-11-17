@@ -108,6 +108,8 @@ PulseEditor::PulseEditor(PulseProcessor& p) : AudioProcessorEditor(p), proc(p)
 PulseEditor::~PulseEditor()
 {
     stopTimer();
+    juce::PopupMenu::dismissAllActiveMenus();
+    if (saveDialog) saveDialog->setLookAndFeel(nullptr); // the dialog may outlive this editor
     tooltips.setLookAndFeel(nullptr);
     setLookAndFeel(nullptr);
 }
@@ -251,6 +253,7 @@ void PulseEditor::savePresetDialog()
 {
     auto* w = new juce::AlertWindow("Save preset", "Name for the new preset:", juce::MessageBoxIconType::NoIcon, this);
     w->setLookAndFeel(&lnf);
+    saveDialog = w;
     w->addTextEditor("name", proc.presets.currentName());
     w->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
     w->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));

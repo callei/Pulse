@@ -135,15 +135,19 @@ void Knob::showTextEntry()
     editor->setFont(theme::font(getHeight() * 0.17f));
     editor->setText(param.getCurrentValueAsText(), false);
     editor->selectAll();
-    auto commit = [this] {
-        if (! editor) return;
-        const auto t = editor->getText();
+    auto commit = [this, ed = editor.get()] {
+        if (editor.get() != ed || ! ed->isVisible()) return;
+        ed->setVisible(false); // marks it done: a later focus-lost won't commit again
+        const auto t = ed->getText();
         if (t.trim().isNotEmpty()) attachment->setValueAsCompleteGesture(param.convertFrom0to1(param.getValueForText(t)));
-        juce::MessageManager::callAsync([sp = juce::Component::SafePointer<Knob>(this)] { if (sp) sp->editor.reset(); });
+        juce::MessageManager::callAsync([sp = juce::Component::SafePointer<Knob>(this), ed] { if (sp && sp->editor.get() == ed) sp->editor.reset(); });
     };
     editor->onReturnKey = commit;
     editor->onFocusLost = commit;
-    editor->onEscapeKey = [this] { juce::MessageManager::callAsync([sp = juce::Component::SafePointer<Knob>(this)] { if (sp) sp->editor.reset(); }); };
+    editor->onEscapeKey = [this, ed = editor.get()] {
+        ed->setVisible(false);
+        juce::MessageManager::callAsync([sp = juce::Component::SafePointer<Knob>(this), ed] { if (sp && sp->editor.get() == ed) sp->editor.reset(); });
+    };
     addAndMakeVisible(*editor);
     resized();
     editor->grabKeyboardFocus();

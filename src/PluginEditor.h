@@ -34,6 +34,7 @@ private:
     juce::TextButton prevPreset { "<" }, nextPreset { ">" }, presetName, savePreset { "Save" };
     juce::TextButton slotA { "A" }, slotB { "B" }, copyAB { "Copy" }, undoButton { "Undo" }, redoButton { "Redo" };
 
+    juce::Component::SafePointer<juce::AlertWindow> saveDialog;
     int lastBoomCount = 0;
     float matchDb = 0.f;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PulseEditor)

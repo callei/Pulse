@@ -94,27 +94,27 @@ void PresetManager::apply(const Values& v, const juce::String& name)
         p->endChangeGesture();
     }
     apvts.state.setProperty("presetName", name, nullptr);
-    loaded = v;
+    loaded = capture(); // as stored by the parameters (ranges/steps applied), so "*" is exact
 }
 
-void PresetManager::load(int index)
+bool PresetManager::load(int index)
 {
     const auto& f = factory();
     const int nf = (int) f.size();
-    if (index < 0) return;
+    if (index < 0) return false;
     if (index < nf)
     {
         Values v = defaultValues();
         for (auto [id, val] : f[(size_t) index].values) v[(size_t) id] = val;
         currentIndex = index;
         apply(v, f[(size_t) index].name);
-        return;
+        return true;
     }
     const auto names = userNames();
-    if (index - nf >= names.size()) return;
+    if (index - nf >= names.size()) return false;
     const auto name = names[index - nf];
     auto xml = juce::XmlDocument::parse(userFolder().getChildFile(name + ".pulsepreset"));
-    if (! xml || ! xml->hasTagName("PulsePreset")) return;
+    if (! xml || ! xml->hasTagName("PulsePreset")) return false;
     Values v = defaultValues();
     for (auto* e : xml->getChildWithTagNameIterator("Param"))
     {
@@ -123,12 +123,17 @@ void PresetManager::load(int index)
     }
     currentIndex = index;
     apply(v, name);
+    return true;
 }
 
 void PresetManager::step(int delta)
 {
     const int n = numPresets();
-    if (n > 0) load(((currentIndex + delta) % n + n) % n);
+    for (int tries = 1; tries <= n; ++tries) // skip unreadable user preset files
+    {
+        const int idx = ((currentIndex + delta * tries) % n + n) % n;
+        if (load(idx)) return;
+    }
 }
 
 bool PresetManager::saveUser(const juce::String& rawName)
