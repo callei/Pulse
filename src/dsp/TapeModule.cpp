@@ -39,6 +39,7 @@ void TapeModule::reset(uint32_t seed)
     phWow[0] = 0.f; phWow[1] = 0.25f; phFl[0] = 0.f; phFl[1] = 0.5f;
     filtersReady = false;
     wetWasOff = true;
+    hissNorm = 0.f;
     // snap all smoothers to "unset" so the first process() call snaps them to the parameter values
     for (auto* s : { &drive, &k, &emph, &bias, &bumpDb, &bumpHz, &lpHz, &wow, &flutter, &hiss, &wet })
         s->snap(-1000.f);
@@ -127,7 +128,8 @@ void TapeModule::process(float* L, float* R, int n, const P::Values& v)
         const float comp = 1.f / (g * kk * (1.f - tb * tb));
 
         const float d = drift.next(rng, 0.5f, fs);
-        const float hissScale = hissG * 1.732f * std::sqrt((float) (fs * 0.5) / std::max(1000.f, lpHz.current - 800.f));
+        if (filtersMoving || hissNorm <= 0.f) hissNorm = 1.732f * std::sqrt((float) (fs * 0.5) / std::max(1000.f, lpHz.current - 800.f));
+        const float hissScale = hissG * hissNorm;
 
         for (int c = 0; c < 2; ++c)
         {
@@ -145,8 +147,8 @@ void TapeModule::process(float* L, float* R, int n, const P::Values& v)
             if (phWow[c] >= 1.f) phWow[c] -= 1.f;
             if (phFl[c] >= 1.f) phFl[c] -= 1.f;
             const float jit = s.jitter.next(rng, 30.f, fs);
-            const float modMs = std::sin(dsp::kTwoPi * phWow[c]) * wowMs
-                              + (std::sin(dsp::kTwoPi * phFl[c]) + 0.3f * jit) * flMs;
+            const float modMs = dsp::fastSin01(phWow[c]) * wowMs
+                              + (dsp::fastSin01(phFl[c]) + 0.3f * jit) * flMs;
             s.mod.push(y);
             y = s.mod.readFrac(base + modMs * msToSamp);
 

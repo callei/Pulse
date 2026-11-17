@@ -16,6 +16,9 @@ FetchContent_MakeAvailable(JUCE)
 set(PULSE_DSP_SOURCES
     src/Params.cpp
     src/dsp/TapeModule.cpp
+    src/dsp/GritModule.cpp
+    src/dsp/ShapeModule.cpp
+    src/dsp/PunchModule.cpp
     src/dsp/GlobalSection.cpp
     src/engine/PulseEngine.cpp)
 

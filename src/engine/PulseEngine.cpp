@@ -8,16 +8,18 @@ void PulseEngine::prepare(double sampleRate, int maxBlockSize)
     double osLat[2];
     for (int q = 0; q < 2; ++q)
     {
-        os[q] = std::make_unique<OS>(2, (size_t) (q + 1), OS::filterHalfBandFIREquiripple, true, false);
+        os[q] = std::make_unique<OS>(2, (size_t) (q + 1), OS::filterHalfBandFIREquiripple, false, false);
         os[q]->initProcessing((size_t) maxBlock);
         osLat[q] = os[q]->getLatencyInSamples();
-        chain[q].prepare(fs, q == 0 ? 2 : 4);
+        chain[q].prepare(fs, q == 0 ? 2 : 4, &telemetry);
     }
     const int wetLatency = (int) std::ceil(std::max(osLat[0], osLat[1])) + dsp::FracDelay::kCentre + 1;
     for (int q = 0; q < 2; ++q)
         for (auto& a : align[q]) a.prepare(wetLatency - osLat[q]);
 
-    latency = wetLatency + TapeModule::baseDelayBaseRate(fs);
+    limiter.prepare(fs, -0.5f);
+    limiterAmount.prepare(fs, 30.f);
+    latency = wetLatency + Chain::fixedDelay(fs) + limiter.delaySamples();
     global.prepare(fs, latency, maxBlock);
     scratch.setSize(2, maxBlock, false, true, false);
     switchStep = 1.f / (float) std::max(1, (int) (0.005 * fs));
@@ -28,6 +30,8 @@ void PulseEngine::reset()
 {
     for (int q = 0; q < 2; ++q) { os[q]->reset(); chain[q].reset(seed); for (auto& a : align[q]) a.reset(); }
     global.reset();
+    limiter.reset();
+    limiterAmount.snap(1.f);
     switchGain = 1.f;
     firstBlock = true;
 }
@@ -65,6 +69,12 @@ void PulseEngine::processChunk(float* L, float* R, int n, const P::Values& v)
 
     // Round the oversampler's fractional latency up to the same whole number of samples for both qualities.
     for (int c = 0; c < 2; ++c) align[activeQuality][c].process(chans[c], n);
+
+    // True-peak safety for the PUNCH Finish stage (delay always applied so latency stays constant).
+    limiterAmount.set(v[P::FxBypass] < 0.5f && v[P::FxMoreOn] >= 0.5f ? 1.f : 0.f);
+    float amt = limiterAmount.current;
+    for (int i = 0; i < n; ++i) amt = limiterAmount.next();
+    limiter.process(L, R, n, amt);
 
     // Quality switch: fade the processed path out (5 ms), swap oversampler/chain, fade back in.
     const bool switching = pendingQuality != activeQuality;

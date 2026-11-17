@@ -33,5 +33,6 @@ private:
     dsp::SmoothRandom drift;
     int coefCounter = 0;
     bool filtersReady = false;
+    float hissNorm = 0.f;
     bool wetWasOff = true;
 };

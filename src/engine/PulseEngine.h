@@ -3,6 +3,11 @@
 #include "../Params.h"
 #include "../dsp/GlobalSection.h"
 #include "../dsp/TapeModule.h"
+#include "../dsp/GritModule.h"
+#include "../dsp/ShapeModule.h"
+#include "../dsp/PunchModule.h"
+#include "../dsp/TruePeakLimiter.h"
+#include "Telemetry.h"
 
 // The complete Pulse signal path, independent of the plugin wrapper (also used by the offline renderer).
 //   input gain -> [oversampled: TAPE -> GRIT -> SHAPE -> PUNCH] -> width -> auto-gain -> mix -> output gain
@@ -18,14 +23,31 @@ public:
     int getLatencySamples() const { return latency; }
 
     GlobalSection global;
+    Telemetry telemetry;
 
 private:
     struct Chain
     {
         TapeModule tape;
-        void prepare(double baseRate, int factor) { tape.prepare(baseRate, factor); }
-        void reset(uint32_t s) { tape.reset(s); }
-        void process(float* L, float* R, int n, const P::Values& v) { tape.process(L, R, n, v); }
+        GritModule grit;
+        ShapeModule shape;
+        PunchModule punch;
+        void prepare(double baseRate, int factor, Telemetry* t)
+        {
+            tape.prepare(baseRate, factor); grit.prepare(baseRate, factor);
+            shape.prepare(baseRate, factor); punch.prepare(baseRate, factor);
+            shape.setTelemetry(t); punch.setTelemetry(t);
+        }
+        void reset(uint32_t s) { tape.reset(s); grit.reset(s); shape.reset(); punch.reset(); }
+        void process(float* L, float* R, int n, const P::Values& v)
+        {
+            tape.process(L, R, n, v); grit.process(L, R, n, v); shape.process(L, R, n, v); punch.process(L, R, n, v);
+        }
+        // Constant delays of the modules (base-rate samples): tape modulation, wobble headroom, look-ahead.
+        static int fixedDelay(double baseRate)
+        {
+            return TapeModule::baseDelayBaseRate(baseRate) + GritModule::baseDelayBaseRate(baseRate) + ShapeModule::lookaheadBaseRate(baseRate);
+        }
     };
     void processChunk(float* L, float* R, int n, const P::Values& v);
 
@@ -35,6 +57,8 @@ private:
     std::unique_ptr<juce::dsp::Oversampling<float>> os[2]; // [0] = Eco 2x, [1] = High 4x
     Chain chain[2];
     dsp::FracDelay align[2][2]; // [quality][channel]
+    TruePeakLimiter limiter;
+    dsp::Smoother limiterAmount;
     int latency = 0;
     int activeQuality = 1, pendingQuality = 1;
     bool firstBlock = true;

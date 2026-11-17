@@ -14,6 +14,19 @@ inline float dbToGain(float db) { return std::pow(10.f, db * 0.05f); }
 inline float gainToDb(float g) { return 20.f * std::log10(std::max(g, 1.0e-9f)); }
 inline float clampf(float x, float lo, float hi) { return std::min(hi, std::max(lo, x)); }
 
+// sin(2*pi*phase) for phase in [0, 1), polynomial (error < 5e-6). For LFOs and tone generators.
+inline float fastSin01(float phase)
+{
+    float t = phase - 0.5f;                   // [-0.5, 0.5): sin(2*pi*phase) = -sin(2*pi*t)
+    if (t > 0.25f) t = 0.5f - t;
+    else if (t < -0.25f) t = -0.5f - t;
+    const float x = t * kTwoPi, x2 = x * x;
+    return -x * (1.f + x2 * (-1.f / 6.f + x2 * (1.f / 120.f + x2 * (-1.f / 5040.f + x2 * (1.f / 362880.f)))));
+}
+
+// Smooth near-hard clipper: u / (1 + u^4)^(1/4). Bounded to +/-1.
+inline float hardishClip(float u) { const float u2 = u * u; return u / std::sqrt(std::sqrt(1.f + u2 * u2)); }
+
 // Rational tanh approximation (max error ~1e-5 on |x| < 5, continuous with the clamp at +/-5).
 inline float fastTanh(float x)
 {
@@ -45,6 +58,34 @@ struct Smoother
     bool isSmoothing() const { return remaining > 0; }
 };
 
+// Click-free switching of a discrete choice: fades the effect out, swaps the choice, fades back in.
+struct SwitchFade
+{
+    int current = -1, pending = 0;
+    float g = 1.f, step = 0.01f;
+    void prepare(double sr, float msEachWay = 15.f) { step = 1.f / std::max(1.f, (float) (sr * msEachWay * 0.001)); }
+    void reset() { current = -1; g = 1.f; }
+    void request(int v) { pending = v; if (current < 0) current = v; }
+    float next() // returns the effect gain; 'current' changes when the gain reaches zero
+    {
+        if (pending != current) { g -= step; if (g <= 0.f) { g = 0.f; current = pending; } }
+        else if (g < 1.f) g = std::min(1.f, g + step);
+        return g;
+    }
+};
+
+// On/off fade (30 ms), so toggling an effect never clicks. active() is false only when fully off.
+struct Fade
+{
+    Smoother s;
+    bool init = false;
+    void prepare(double sr, float ms = 30.f) { s.prepare(sr, ms); }
+    void reset() { init = false; }
+    void set(float target) { if (! init) { s.snap(target); init = true; } else s.set(target); }
+    float next() { return s.next(); }
+    bool active() const { return s.current > 0.f || s.isSmoothing(); }
+};
+
 // xorshift32: deterministic, seedable noise in [-1, 1).
 struct Random
 {
@@ -63,30 +104,30 @@ struct SmoothRandom
     {
         phase += (float) (rateHz / sr);
         if (phase >= 1.f) { phase -= std::floor(phase); a = b; b = rng.bipolar(); }
-        const float t = 0.5f - 0.5f * std::cos(kPi * phase);
+        const float t = phase * phase * (3.f - 2.f * phase); // smoothstep
         return a + (b - a) * t;
     }
     void reset() { a = b = 0.f; phase = 1.f; }
 };
 
-// RBJ biquad, transposed direct form II.
+// RBJ biquad, transposed direct form II, double precision (low cutoffs at 4x-oversampled rates need it).
 struct Biquad
 {
-    float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
-    float z1 = 0, z2 = 0;
+    double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
+    double z1 = 0, z2 = 0;
 
-    float process(float x)
+    float process(float xf)
     {
-        const float y = b0 * x + z1;
+        const double x = xf, y = b0 * x + z1;
         z1 = b1 * x - a1 * y + z2;
         z2 = b2 * x - a2 * y;
-        return y;
+        return (float) y;
     }
-    void reset() { z1 = z2 = 0.f; }
+    void reset() { z1 = z2 = 0.0; }
     void set(double B0, double B1, double B2, double A0, double A1, double A2)
     {
-        b0 = (float) (B0 / A0); b1 = (float) (B1 / A0); b2 = (float) (B2 / A0);
-        a1 = (float) (A1 / A0); a2 = (float) (A2 / A0);
+        b0 = B0 / A0; b1 = B1 / A0; b2 = B2 / A0;
+        a1 = A1 / A0; a2 = A2 / A0;
     }
     static double w0(double f, double sr) { return 2.0 * 3.141592653589793 * std::min(f, sr * 0.49) / sr; }
 
