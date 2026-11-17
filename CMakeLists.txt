@@ -35,7 +35,8 @@ juce_add_plugin(Pulse
     VST3_CATEGORIES Fx Dynamics Distortion
     COPY_PLUGIN_AFTER_BUILD FALSE)
 
-target_sources(Pulse PRIVATE ${PULSE_DSP_SOURCES} src/PluginProcessor.cpp)
+target_sources(Pulse PRIVATE ${PULSE_DSP_SOURCES} src/PluginProcessor.cpp src/PluginEditor.cpp src/PresetManager.cpp
+    src/ui/Controls.cpp src/ui/ModuleCard.cpp)
 target_include_directories(Pulse PRIVATE src)
 target_compile_definitions(Pulse PUBLIC
     JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
@@ -51,4 +52,14 @@ target_include_directories(pulse_render PRIVATE src)
 target_compile_definitions(pulse_render PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 target_link_libraries(pulse_render
     PRIVATE juce::juce_audio_formats juce::juce_audio_processors juce::juce_dsp
+    PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# Developer tool: renders the editor off-screen to a PNG (layout checks).
+juce_add_console_app(pulse_uishot PRODUCT_NAME "pulse_uishot")
+target_sources(pulse_uishot PRIVATE ${PULSE_DSP_SOURCES} src/PluginProcessor.cpp src/PluginEditor.cpp src/PresetManager.cpp
+    src/ui/Controls.cpp src/ui/ModuleCard.cpp tests/UiShotMain.cpp)
+target_include_directories(pulse_uishot PRIVATE src)
+target_compile_definitions(pulse_uishot PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1 JucePlugin_Name="Pulse")
+target_link_libraries(pulse_uishot
+    PRIVATE juce::juce_audio_utils juce::juce_dsp
     PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)

@@ -1,10 +1,11 @@
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 
 PulseProcessor::PulseProcessor()
     : AudioProcessor(BusesProperties()
                          .withInput("Input", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      apvts(*this, nullptr, "PulseState", P::createLayout()),
+      apvts(*this, &undo, "PulseState", P::createLayout()),
       seed(juce::Random::getSystemRandom().nextInt() | 1u)
 {
     for (int i = 0; i < P::Count; ++i)
@@ -40,13 +41,14 @@ void PulseProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
 
 juce::AudioProcessorEditor* PulseProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new PulseEditor(*this);
 }
 
 void PulseProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     state.setProperty("seed", (juce::int64) seed, nullptr);
+    state.setProperty("uiWidth", uiWidth, nullptr);
     if (auto xml = state.createXml()) copyXmlToBinary(*xml, destData);
 }
 
@@ -57,8 +59,10 @@ void PulseProcessor::setStateInformation(const void* data, int sizeInBytes)
         {
             auto state = juce::ValueTree::fromXml(*xml);
             if (state.hasProperty("seed")) seed = (uint32_t) (juce::int64) state["seed"];
+            if (state.hasProperty("uiWidth")) uiWidth = (int) state["uiWidth"];
             apvts.replaceState(state);
             engine.setSeed(seed);
+            stateRecalled = true;
         }
 }
 

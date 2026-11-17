@@ -2,6 +2,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Params.h"
 #include "engine/PulseEngine.h"
+#include "PresetManager.h"
 
 class PulseProcessor : public juce::AudioProcessor
 {
@@ -31,8 +32,15 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
+    juce::UndoManager undo;
     juce::AudioProcessorValueTreeState apvts;
+    PresetManager presets { apvts };
     PulseEngine engine;
+
+    // UI state (message thread). Window width is also saved with the session.
+    int uiWidth = 0;
+    std::array<bool, 4> cardOpen {};
+    std::atomic<bool> stateRecalled { false }; // set by setStateInformation, consumed by the editor
 
 private:
     std::array<std::atomic<float>*, P::Count> raw {};
